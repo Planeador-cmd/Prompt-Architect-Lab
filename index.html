@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Laboratorio de Ingeniería de Prompts | Architect v4.0.0</title>
+  <title>Prompt Architect Lab v4.2.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
@@ -14,19 +14,9 @@
       theme: {
         extend: {
           colors: {
-            slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' },
-            cyan: { 400: '#22d3ee', 500: '#06b6d4', 900: '#083344' },
-            violet: { 500: '#8b5cf6', 900: '#4c1d95' },
-            emerald: { 400: '#34d399', 900: '#064e3b' },
-            amber: { 400: '#fbbf24', 900: '#78350f' }
-          },
-          animation: {
-            'slide-in': 'slideIn 0.3s ease-out forwards',
-            'fade-out': 'fadeOut 0.3s ease-in forwards'
-          },
-          keyframes: {
-            slideIn: { '0%': { transform: 'translateY(100%)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
-            fadeOut: { '0%': { opacity: '1' }, '100%': { opacity: '0' } }
+            slate: { 850: '#151e2e', 950: '#020617' },
+            cyan: { 400: '#22d3ee' },
+            violet: { 400: '#a78bfa' }
           }
         }
       }
@@ -34,234 +24,313 @@
   </script>
   <style>
     body { font-family: Inter, system-ui, sans-serif; }
-    .input-field {
-      width: 100%; background-color: #1e293b; border: 1px solid #334155;
-      color: #e2e8f0; padding: 0.75rem; border-radius: 0.375rem; transition: all 0.2s;
-    }
+    .input-field { width: 100%; background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: .7rem; border-radius: .5rem; }
     .input-field:focus { outline: none; border-color: #22d3ee; box-shadow: 0 0 0 1px #22d3ee; }
-    .output-area { background-color: #020617; border: 1px solid #1e293b; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-    .prose table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; }
-    .prose th { color: #94a3b8; font-weight: 600; padding: 0.25rem; border-bottom: 1px solid #334155; }
-    .prose td { padding: 0.25rem; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+    .output-area { background: #020617; border: 1px solid #1e293b; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .pill { font-size: 10px; border: 1px solid #334155; padding: 3px 8px; border-radius: 999px; }
+    .prose table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+    .prose th,.prose td { padding: .25rem; border-bottom: 1px solid #1e293b; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-200 min-h-screen flex flex-col overflow-hidden">
-<header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
-  <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center gap-3">
-    <div class="flex items-center gap-3">
-      <i data-lucide="flask-conical" class="text-cyan-400 w-6 h-6"></i>
-      <h1 class="text-xl font-bold tracking-tight text-slate-100 uppercase">Prompt <span class="text-cyan-400">Architect</span> Lab</h1>
-    </div>
-    <div class="flex items-center gap-3">
-      <div id="tokenCount" class="text-[10px] font-mono text-slate-500">0 chars</div>
-      <div id="modelBadge" class="text-[10px] font-mono bg-cyan-900/30 text-cyan-400 border border-cyan-800 px-2 py-1 rounded flex items-center gap-2"></div>
-    </div>
-  </div>
-</header>
-
-<main class="flex-1 max-w-7xl mx-auto w-full p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden h-full">
-  <div class="lg:col-span-5 space-y-5 overflow-y-auto pr-2 h-[calc(100vh-140px)] pb-10">
-    <section class="bg-slate-900 p-5 rounded-lg border border-slate-800 shadow-lg space-y-4">
-      <label class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">Arquitectura Cognitiva</label>
-      <select id="frameworkSelect" class="input-field cursor-pointer text-sm font-mono" aria-label="Selector de framework"></select>
-      <p id="frameworkDesc" class="text-xs text-slate-500 italic"></p>
-      <label class="text-[10px] text-slate-500 font-bold uppercase mb-1 block">API Key de Gemini (solo local)</label>
-      <input id="apiKeyInput" type="password" class="input-field text-sm" placeholder="AIza..." autocomplete="off" />
-      <button id="btnRefine" class="w-full py-2 bg-violet-900/20 hover:bg-violet-900/40 text-violet-400 text-xs rounded border border-violet-800 transition flex items-center justify-center gap-2">
-        <i data-lucide="sparkles" class="w-3 h-3"></i><span>Estructurar Inputs (ES)</span>
-      </button>
-    </section>
-
-    <section class="space-y-4" id="inputsPanel"></section>
-  </div>
-
-  <div class="lg:col-span-7 flex flex-col h-[calc(100vh-140px)] gap-4">
-    <div class="flex justify-between items-center">
-      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="code" class="w-3 h-3 text-cyan-400"></i>Prompt Generado</h2>
-      <div class="flex gap-2">
-        <button id="btnClear" class="p-1.5 text-slate-500 hover:text-red-400 transition" title="Limpiar todo"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-        <button id="btnCopy" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-4 py-1.5 rounded text-xs font-bold transition">Copiar</button>
+  <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <i data-lucide="flask-conical" class="w-6 h-6 text-cyan-400"></i>
+        <h1 class="font-bold uppercase tracking-wide">Prompt <span class="text-cyan-400">Architect</span> Lab</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="tokenCount" class="pill text-slate-400">0 chars (~0 tokens)</span>
+        <span id="saveStatus" class="pill text-emerald-400">Autosave: activo</span>
+        <span id="modelBadge" class="pill text-cyan-400"></span>
       </div>
     </div>
+  </header>
 
-    <div class="flex-1 min-h-0 flex flex-col gap-4">
-      <div class="relative h-1/2 flex flex-col">
-        <textarea id="outputPrompt" class="output-area w-full flex-1 p-6 text-sm text-slate-300 resize-none focus:outline-none rounded-lg border border-slate-800" placeholder="El prompt generado aparecerá aquí..."></textarea>
-        <div class="bg-slate-900 border border-slate-800 rounded-lg p-2 flex flex-wrap gap-2 justify-end items-center mt-2">
-          <button id="btnOptimize" class="text-[10px] px-3 py-1.5 bg-emerald-900/20 text-emerald-400 rounded border border-emerald-800/30">Mejorar</button>
-          <button id="btnTranslate" class="text-[10px] px-3 py-1.5 bg-amber-900/20 text-amber-400 rounded border border-amber-800/30">Traducir</button>
-          <button id="btnRevert" class="text-[10px] px-3 py-1.5 bg-slate-800 text-slate-300 rounded border border-slate-700">Revertir</button>
-          <button id="btnFinal" class="text-[10px] px-3 py-1.5 bg-indigo-600 text-white rounded border border-indigo-500/50">Trad. Final (EN)</button>
+  <main class="max-w-7xl mx-auto w-full p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-hidden">
+    <aside class="lg:col-span-5 space-y-4 overflow-y-auto pr-1 h-[calc(100vh-120px)]">
+      <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <label class="text-[10px] uppercase text-cyan-400 font-bold">Arquitectura Cognitiva</label>
+        <select id="frameworkSelect" class="input-field text-sm"></select>
+        <p id="frameworkDesc" class="text-xs text-slate-400"></p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] uppercase text-slate-500 font-bold">API Key Gemini</label>
+            <input id="apiKeyInput" class="input-field text-sm" type="password" placeholder="AIza..." autocomplete="off" />
+          </div>
+          <div>
+            <label class="text-[10px] uppercase text-slate-500 font-bold">Nombre preset</label>
+            <input id="presetNameInput" class="input-field text-sm" type="text" placeholder="Mi plantilla" />
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button id="btnRefine" class="px-3 py-2 rounded bg-violet-500/15 border border-violet-500/40 text-violet-300 text-xs">Estructurar Inputs (IA)</button>
+          <button id="btnSavePreset" class="px-3 py-2 rounded bg-slate-800 border border-slate-700 text-xs">Guardar preset</button>
+          <button id="btnExport" class="px-3 py-2 rounded bg-slate-800 border border-slate-700 text-xs">Exportar JSON</button>
+          <label class="px-3 py-2 rounded bg-slate-800 border border-slate-700 text-xs cursor-pointer">Importar JSON<input id="importFile" type="file" accept="application/json" class="hidden"></label>
+        </div>
+
+        <div>
+          <label class="text-[10px] uppercase text-slate-500 font-bold">Presets guardados</label>
+          <div class="flex gap-2 mt-1">
+            <select id="presetSelect" class="input-field text-sm"></select>
+            <button id="btnLoadPreset" class="px-3 rounded bg-cyan-500 text-slate-950 text-xs font-bold">Cargar</button>
+            <button id="btnDeletePreset" class="px-3 rounded bg-red-500/15 border border-red-500/40 text-red-300 text-xs">Borrar</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="inputsPanel" class="space-y-3"></section>
+    </aside>
+
+    <section class="lg:col-span-7 flex flex-col gap-4 h-[calc(100vh-120px)]">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xs uppercase text-slate-400 font-bold">Prompt generado</h2>
+        <div class="flex gap-2">
+          <button id="btnUndo" class="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-xs">Undo</button>
+          <button id="btnRedo" class="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-xs">Redo</button>
+          <button id="btnClear" class="px-3 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-300 text-xs">Limpiar</button>
+          <button id="btnCopy" class="px-3 py-1 rounded bg-cyan-500 text-slate-950 text-xs font-bold">Copiar</button>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-4 h-1/2">
-        <section class="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col overflow-hidden relative">
-          <div class="flex justify-between items-center mb-2">
-            <h3 class="text-[10px] font-bold text-violet-400 uppercase">LLM Judge</h3>
-            <button id="btnEvaluate" class="text-[9px] bg-violet-500/10 text-violet-400 px-2 py-1 rounded border border-violet-800">Evaluar</button>
+      <div class="flex-1 min-h-0 grid grid-rows-[1.1fr_.9fr] gap-4">
+        <div class="flex flex-col gap-2 min-h-0">
+          <textarea id="outputPrompt" class="output-area w-full h-full rounded-xl p-4 text-sm resize-none" placeholder="El prompt generado aparecerá aquí..."></textarea>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-wrap gap-2">
+            <button id="btnOptimize" class="px-3 py-1.5 text-xs rounded bg-emerald-500/15 border border-emerald-500/35 text-emerald-300">Mejorar</button>
+            <button id="btnTranslate" class="px-3 py-1.5 text-xs rounded bg-amber-500/15 border border-amber-500/35 text-amber-300">Traducir</button>
+            <button id="btnRevert" class="px-3 py-1.5 text-xs rounded bg-slate-800 border border-slate-700">Revertir ES</button>
+            <button id="btnFinal" class="px-3 py-1.5 text-xs rounded bg-indigo-600 border border-indigo-500/60">Final EN</button>
           </div>
-          <div id="evalOutput" class="text-xs text-slate-300 overflow-y-auto prose prose-invert max-w-none prose-sm"></div>
-          <div id="loadingEval" class="absolute inset-0 bg-slate-950/90 hidden items-center justify-center text-violet-400 text-[10px] font-mono">ANALIZANDO...</div>
-        </section>
+        </div>
 
-        <section class="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col overflow-hidden relative">
-          <div class="flex justify-between items-center mb-2">
-            <h3 class="text-[10px] font-bold text-cyan-400 uppercase">Simulator</h3>
-            <button id="btnTest" class="text-[9px] bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded border border-cyan-800">Probar Prompt</button>
-          </div>
-          <div id="testOutput" class="text-xs text-slate-300 overflow-y-auto prose prose-invert max-w-none prose-sm"></div>
-          <div id="loadingTest" class="absolute inset-0 bg-slate-950/90 hidden items-center justify-center text-cyan-400 text-[10px] font-mono">SIMULANDO...</div>
-        </section>
+        <div class="grid grid-cols-2 gap-4 min-h-0">
+          <article class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0 relative">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-[11px] uppercase text-violet-400 font-bold">LLM Judge</h3>
+              <button id="btnEvaluate" class="text-[10px] px-2 py-1 rounded border border-violet-500/40 text-violet-300">Evaluar</button>
+            </div>
+            <div id="evalOutput" class="prose prose-invert prose-sm text-xs overflow-y-auto min-h-0"></div>
+            <div id="loadingEval" class="absolute inset-0 hidden items-center justify-center bg-slate-950/90 text-violet-300 text-xs">ANALIZANDO...</div>
+          </article>
+
+          <article class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0 relative">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-[11px] uppercase text-cyan-400 font-bold">Simulator</h3>
+              <button id="btnTest" class="text-[10px] px-2 py-1 rounded border border-cyan-500/40 text-cyan-300">Probar</button>
+            </div>
+            <div id="testOutput" class="prose prose-invert prose-sm text-xs overflow-y-auto min-h-0"></div>
+            <div id="loadingTest" class="absolute inset-0 hidden items-center justify-center bg-slate-950/90 text-cyan-300 text-xs">SIMULANDO...</div>
+          </article>
+        </div>
       </div>
-    </div>
-  </div>
-</main>
+    </section>
+  </main>
 
-<div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
 
 <script>
+(() => {
+  'use strict';
+
   const CURRENT_MODEL = 'gemini-2.5-flash';
   const API_VERSION = 'v1beta';
+  const STORAGE_KEY = 'prompt-architect-state-v42';
+  const PRESETS_KEY = 'prompt-architect-presets-v42';
 
   const frameworkOptions = [
-    { value: 'robust', label: 'Estándar Robusto (Prompt Base)', desc: 'Equilibrio ideal para prompts generales.' },
-    { value: 'anthropic', label: 'Anthropic System (XML Tags)', desc: 'Útil para estructura por etiquetas.' },
-    { value: 'risen', label: 'R.I.S.E.N. (Lógica de Pasos)', desc: 'Divide el trabajo en pasos explícitos.' },
-    { value: 'care', label: 'C.A.R.E. (Copywriting/Resultados)', desc: 'Orientado a acciones con foco en resultado.' },
-    { value: 'cot', label: 'Chain of Thought (Razonamiento)', desc: 'Fuerza razonamiento paso a paso.' }
+    { value: 'robust', label: 'Estándar Robusto', desc: 'Plantilla general balanceada.' },
+    { value: 'anthropic', label: 'Anthropic XML', desc: 'Estructura por etiquetas XML.' },
+    { value: 'risen', label: 'R.I.S.E.N.', desc: 'Descompone la tarea en pasos.' },
+    { value: 'care', label: 'C.A.R.E.', desc: 'Orientado a resultados/acción.' },
+    { value: 'cot', label: 'Chain of Thought', desc: 'Razonamiento paso a paso.' }
   ];
 
   const fields = [
-    { id: 'inputRole', key: 'role', label: 'Rol (Role)', type: 'input', placeholder: 'Ej: Ingeniero de Datos Senior...' },
-    { id: 'inputTask', key: 'task', label: 'Objetivo (Task)', type: 'textarea', rows: 3, placeholder: 'Ej: Analizar este texto y resumir hallazgos...' },
-    { id: 'inputContext', key: 'context', label: 'Contexto (Context)', type: 'textarea', rows: 3, placeholder: 'Pega aquí los datos crudos...' },
-    { id: 'inputAudience', key: 'audience', label: 'Audiencia (Audience)', type: 'input', placeholder: 'Ej: Ejecutivos Nivel C...' },
-    { id: 'inputExamples', key: 'examples', label: 'Ejemplos (Few-Shot)', type: 'textarea', rows: 3, placeholder: 'Usuario: [Entrada]\nAsistente: [Salida ideal]' },
-    { id: 'inputConstraints', key: 'constraints', label: 'Restricciones (Constraints)', type: 'textarea', rows: 2, placeholder: 'Sin jerga técnica, máximo 200 palabras...' },
-    { id: 'inputFormat', key: 'format', label: 'Formato (Format)', type: 'input', placeholder: 'Ej: Tabla Markdown, JSON...' }
+    { id: 'inputRole', key: 'role', label: 'Rol (Role)', tag: 'input', placeholder: 'Ej: Ingeniero de Datos Senior...' },
+    { id: 'inputTask', key: 'task', label: 'Objetivo (Task)', tag: 'textarea', rows: 3, placeholder: 'Ej: Analiza este texto y resume hallazgos.' },
+    { id: 'inputContext', key: 'context', label: 'Contexto (Context)', tag: 'textarea', rows: 3, placeholder: 'Pega aquí datos base o restricciones de negocio.' },
+    { id: 'inputAudience', key: 'audience', label: 'Audiencia (Audience)', tag: 'input', placeholder: 'Ej: Comité Ejecutivo...' },
+    { id: 'inputExamples', key: 'examples', label: 'Ejemplos (Few-Shot)', tag: 'textarea', rows: 3, placeholder: 'Usuario: ...\nAsistente: ...' },
+    { id: 'inputConstraints', key: 'constraints', label: 'Restricciones (Constraints)', tag: 'textarea', rows: 2, placeholder: 'Ej: máximo 200 palabras, sin jerga.' },
+    { id: 'inputFormat', key: 'format', label: 'Formato (Format)', tag: 'input', placeholder: 'Ej: Tabla Markdown, JSON, bullets.' }
   ];
 
   const elements = {};
+  const historyState = { stack: [], idx: -1 };
 
-  function el(id) { return document.getElementById(id); }
+  const byId = (id) => document.getElementById(id);
 
-  function bootstrapUI() {
-    const select = el('frameworkSelect');
+  function init() {
+    buildFrameworkOptions();
+    buildInputs();
+    bindStaticElements();
+    wireEvents();
+    hydrateFromStorage();
+    refreshPresets();
+    updateFrameworkDescription();
+    updateTokenCount(elements.output.value || '');
+    byId('modelBadge').innerHTML = `<span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span> ${CURRENT_MODEL}`;
+    lucide.createIcons();
+    pushHistory(elements.output.value || '');
+    renderMarkdownSafe('evalOutput', '**¿Para qué sirve?**\n\nEvalúa claridad, lógica y robustez.');
+    renderMarkdownSafe('testOutput', '**Resultado esperado:**\n\nEl simulador ejecuta el prompt y responde en español.');
+  }
+
+  function buildFrameworkOptions() {
+    const select = byId('frameworkSelect');
     frameworkOptions.forEach((f) => {
       const option = document.createElement('option');
       option.value = f.value;
       option.textContent = f.label;
       select.appendChild(option);
     });
+    elements.framework = select;
+  }
 
-    const panel = el('inputsPanel');
+  function buildInputs() {
+    const panel = byId('inputsPanel');
     fields.forEach((f) => {
-      const wrapper = document.createElement('div');
+      const wrap = document.createElement('div');
       const label = document.createElement('label');
-      label.className = 'text-[10px] text-slate-500 font-bold uppercase mb-1 block';
+      label.className = 'text-[10px] uppercase text-slate-500 font-bold';
       label.textContent = f.label;
       label.htmlFor = f.id;
-      wrapper.appendChild(label);
-      const input = document.createElement(f.type === 'textarea' ? 'textarea' : 'input');
+
+      const input = document.createElement(f.tag === 'textarea' ? 'textarea' : 'input');
       input.id = f.id;
-      input.className = 'input-field text-sm';
+      input.className = 'input-field text-sm mt-1';
       input.placeholder = f.placeholder;
-      if (f.type === 'textarea') input.rows = f.rows;
-      panel.appendChild(wrapper);
-      wrapper.appendChild(input);
+      if (f.rows) input.rows = f.rows;
+
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      panel.appendChild(wrap);
       elements[f.key] = input;
     });
+  }
 
-    elements.framework = select;
-    elements.desc = el('frameworkDesc');
-    elements.output = el('outputPrompt');
-    elements.tokenCount = el('tokenCount');
-    elements.apiKey = el('apiKeyInput');
-
-    el('modelBadge').innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>MODEL: ${CURRENT_MODEL}`;
-
-    resetPanels();
-    wireEvents();
-    updateFrameworkDescription();
-    lucide.createIcons();
+  function bindStaticElements() {
+    Object.assign(elements, {
+      apiKey: byId('apiKeyInput'),
+      output: byId('outputPrompt'),
+      tokenCount: byId('tokenCount'),
+      desc: byId('frameworkDesc'),
+      presetName: byId('presetNameInput'),
+      presetSelect: byId('presetSelect'),
+      importFile: byId('importFile')
+    });
   }
 
   function wireEvents() {
     elements.framework.addEventListener('change', updateFrameworkDescription);
-    [...Object.values(elements).filter(Boolean)].forEach((e) => {
-      if (e instanceof HTMLElement && ['INPUT', 'TEXTAREA'].includes(e.tagName) && e.id !== 'apiKeyInput') {
-        e.addEventListener('input', generatePrompt);
-      }
-    });
+    fields.forEach((f) => elements[f.key].addEventListener('input', onInputsChanged));
+    elements.output.addEventListener('input', onOutputEdited);
 
-    elements.output.addEventListener('input', (e) => updateTokenCount(e.target.value));
-    el('btnCopy').addEventListener('click', copyToClipboard);
-    el('btnClear').addEventListener('click', clearAll);
-    el('btnRefine').addEventListener('click', aiRefineInputs);
-    el('btnOptimize').addEventListener('click', () => runTransform('Mejorando...', 'Expert Editor. Improve clarity and flow, keep the SAME language. Return ONLY prompt.'));
-    el('btnTranslate').addEventListener('click', () => runTransform('Traduciendo...', 'Translate to technical English preserving structure. Return ONLY text.'));
-    el('btnRevert').addEventListener('click', () => runTransform('Revirtiendo...', 'Translate this prompt back to Spanish preserving structure. Return ONLY text.'));
-    el('btnFinal').addEventListener('click', optimizeAndTranslate);
-    el('btnEvaluate').addEventListener('click', evaluatePrompt);
-    el('btnTest').addEventListener('click', testPrompt);
+    byId('btnRefine').addEventListener('click', aiRefineInputs);
+    byId('btnOptimize').addEventListener('click', () => runTransform('Mejorando...', 'Improve clarity and precision. Keep same language. Return only prompt.'));
+    byId('btnTranslate').addEventListener('click', () => runTransform('Traduciendo...', 'Translate prompt to technical English preserving structure. Return only text.'));
+    byId('btnRevert').addEventListener('click', () => runTransform('Revirtiendo...', 'Translate content back to Spanish preserving structure. Return only text.'));
+    byId('btnFinal').addEventListener('click', optimizeAndTranslate);
+
+    byId('btnEvaluate').addEventListener('click', evaluatePrompt);
+    byId('btnTest').addEventListener('click', testPrompt);
+
+    byId('btnClear').addEventListener('click', clearAll);
+    byId('btnCopy').addEventListener('click', copyToClipboard);
+    byId('btnUndo').addEventListener('click', undoOutput);
+    byId('btnRedo').addEventListener('click', redoOutput);
+
+    byId('btnSavePreset').addEventListener('click', savePreset);
+    byId('btnLoadPreset').addEventListener('click', loadPreset);
+    byId('btnDeletePreset').addEventListener('click', deletePreset);
+    byId('btnExport').addEventListener('click', exportStateJson);
+    elements.importFile.addEventListener('change', importStateJson);
+
+    document.addEventListener('keydown', keyboardShortcuts);
   }
 
-  function updateFrameworkDescription() {
-    const fw = frameworkOptions.find((f) => f.value === elements.framework.value);
-    elements.desc.textContent = fw?.desc ?? '';
+  function keyboardShortcuts(e) {
+    const isMac = navigator.platform.toUpperCase().includes('MAC');
+    const cmd = isMac ? e.metaKey : e.ctrlKey;
+    if (!cmd) return;
+
+    if (e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      savePreset();
+    }
+    if (e.key.toLowerCase() === 'c' && e.shiftKey) {
+      e.preventDefault();
+      copyToClipboard();
+    }
+  }
+
+  function onInputsChanged() {
     generatePrompt();
+    persistState();
   }
 
-  function buildPrompt(data, fw) {
+  function onOutputEdited(e) {
+    updateTokenCount(e.target.value);
+    pushHistory(e.target.value);
+    persistState();
+  }
+
+  function getData() {
+    const data = { framework: elements.framework.value };
+    fields.forEach((f) => { data[f.key] = elements[f.key].value.trim(); });
+    return data;
+  }
+
+  function buildPrompt(data) {
     let p = '';
-    if (fw === 'robust') {
+    if (data.framework === 'robust') {
       if (data.role) p += `### ROLE\n${data.role}\n\n`;
       if (data.context) p += `### CONTEXT\n${data.context}\n\n`;
-      if (data.examples) p += `### EXAMPLES (FEW-SHOT)\n${data.examples}\n\n`;
-      if (data.task) p += `### GOAL/TASK\n${data.task}\n\n`;
+      if (data.examples) p += `### EXAMPLES\n${data.examples}\n\n`;
+      if (data.task) p += `### GOAL\n${data.task}\n\n`;
       if (data.audience) p += `### AUDIENCE\n${data.audience}\n\n`;
       if (data.constraints) p += `### CONSTRAINTS\n${data.constraints}\n\n`;
       if (data.format) p += `### OUTPUT FORMAT\n${data.format}`;
-    } else if (fw === 'anthropic') {
+    } else if (data.framework === 'anthropic') {
       if (data.role) p += `System Role: ${data.role}\n\n`;
       p += `<context>\n${data.context || 'N/A'}\n</context>\n\n`;
-      if (data.examples) p += `<examples>\n${data.examples}\n</examples>\n\n`;
       p += `<task>\n${data.task || 'N/A'}\n</task>\n\n`;
+      if (data.examples) p += `<examples>\n${data.examples}\n</examples>\n\n`;
       if (data.constraints) p += `<constraints>\n${data.constraints}\n</constraints>\n\n`;
       if (data.format) p += `<output_format>\n${data.format}\n</output_format>`;
-    } else if (fw === 'risen') {
-      p += `**Role:** ${data.role || 'Expert AI'}\n\n**Instructions:** ${data.task || 'N/A'}\n`;
-      if (data.context) p += `\n(Context: ${data.context})\n`;
-      p += `\n**Steps:**\n1. Analyze request.\n2. Review examples.\n3. Build result.\n\n`;
-      if (data.examples) p += `**Examples:**\n${data.examples}\n\n`;
-      p += `**Audience:** ${data.audience || 'General'}\n**Constraints:** ${data.constraints || 'None'}\n`;
-      if (data.format) p += `**Format:** ${data.format}`;
-    } else if (fw === 'care') {
-      p += `1. **CONTEXT**: ${data.context || 'N/A'}\n2. **ACTION**: ${data.task || 'N/A'} (Role: ${data.role || 'N/A'})\n3. **RESULT**: Tailored for ${data.audience || 'General'}. Constraints: ${data.constraints || 'None'}\n4. **EXAMPLE/FORMAT**: ${data.examples || data.format || 'N/A'}`;
+    } else if (data.framework === 'risen') {
+      p += `Role: ${data.role || 'Expert AI'}\nTask: ${data.task || 'N/A'}\nContext: ${data.context || 'N/A'}\n`;
+      p += `\nSteps:\n1) Analyze request\n2) Validate constraints\n3) Produce output\n`;
+      if (data.examples) p += `\nExamples:\n${data.examples}\n`;
+      p += `\nAudience: ${data.audience || 'General'}\nConstraints: ${data.constraints || 'None'}`;
+      if (data.format) p += `\nFormat: ${data.format}`;
+    } else if (data.framework === 'care') {
+      p += `1. CONTEXT: ${data.context || 'N/A'}\n2. ACTION: ${data.task || 'N/A'} (Role: ${data.role || 'N/A'})\n3. RESULT: For ${data.audience || 'General'}\n4. CONSTRAINTS: ${data.constraints || 'None'}\n5. FORMAT: ${data.format || data.examples || 'Flexible'}`;
     } else {
       p += `Request: ${data.task || 'N/A'}\nContext: ${data.context || 'N/A'}\nRole: ${data.role || 'N/A'}\n`;
-      if (data.examples) p += `\nExamples:\n${data.examples}\n`;
-      p += `\nInstructions:\nLet's think step by step.\n1. Analyze constraints: ${data.constraints || 'None'}.\n2. Define format: ${data.format || 'Flexible'}.\n3. Generate response.`;
+      if (data.examples) p += `Examples:\n${data.examples}\n`;
+      p += `\nThink step by step. Respect constraints: ${data.constraints || 'None'}. Use format: ${data.format || 'Flexible'}.`;
     }
 
-    p += '\n\n***\nREQUIREMENT: Answer with epistemological rigor: distinguish facts, inferences, and debates; prioritize evidence; point out limits; and verify exhaustiveness.\n***\n\n***\nIMPORTANT: OUTPUT MUST BE IN SPANISH (ESPAÑOL).\n***';
+    p += `\n\n***\nREQUIREMENT: Answer with epistemological rigor (facts, inferences, debates, limits and evidence).\n***\n\n***\nIMPORTANT: OUTPUT MUST BE IN SPANISH (ESPAÑOL).\n***`;
     return p.trim();
   }
 
   function generatePrompt() {
-    const data = {
-      role: elements.role.value.trim(),
-      task: elements.task.value.trim(),
-      context: elements.context.value.trim(),
-      audience: elements.audience.value.trim(),
-      examples: elements.examples.value.trim(),
-      constraints: elements.constraints.value.trim(),
-      format: elements.format.value.trim()
-    };
+    const prompt = buildPrompt(getData());
+    elements.output.value = prompt;
+    updateTokenCount(prompt);
+    pushHistory(prompt);
+  }
 
-    elements.output.value = buildPrompt(data, elements.framework.value);
-    updateTokenCount(elements.output.value);
+  function updateFrameworkDescription() {
+    const fw = frameworkOptions.find((f) => f.value === elements.framework.value);
+    elements.desc.textContent = fw ? fw.desc : '';
+    generatePrompt();
   }
 
   function updateTokenCount(text) {
@@ -271,155 +340,292 @@
   }
 
   function showToast(message, type = 'info') {
-    const container = el('toastContainer');
+    const colors = {
+      info: 'border-cyan-500 text-cyan-300',
+      success: 'border-emerald-500 text-emerald-300',
+      error: 'border-red-500 text-red-300'
+    };
     const toast = document.createElement('div');
-    const colors = type === 'error' ? 'border-red-500 text-red-400' : type === 'success' ? 'border-emerald-500 text-emerald-400' : 'border-cyan-500 text-cyan-400';
-    toast.className = `bg-slate-900/90 backdrop-blur border-l-4 ${colors} p-3 rounded shadow-2xl flex items-center gap-2 min-w-[260px] animate-slide-in`;
-    toast.innerHTML = `<span class="text-xs font-semibold">${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => {
-      toast.classList.add('animate-fade-out');
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    toast.className = `bg-slate-900 border-l-4 ${colors[type] || colors.info} px-3 py-2 rounded text-xs shadow`;
+    toast.textContent = message;
+    byId('toastContainer').appendChild(toast);
+    setTimeout(() => toast.remove(), 2600);
+  }
+
+  function renderMarkdownSafe(targetId, markdownText) {
+    const html = marked.parse(markdownText || '');
+    byId(targetId).innerHTML = DOMPurify.sanitize(html);
   }
 
   async function callGemini(userText, systemText) {
     const apiKey = elements.apiKey.value.trim();
     if (!apiKey) {
-      showToast('Falta API Key para usar funciones IA.', 'error');
+      showToast('Ingresa API key para funciones IA.', 'error');
       return null;
     }
 
-    const url = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${CURRENT_MODEL}:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${CURRENT_MODEL}:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts: [{ text: userText }] }],
       systemInstruction: { parts: [{ text: systemText }] }
     };
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText.slice(0, 200)}`);
-      }
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const json = await response.json();
+      if (json.error) throw new Error(json.error.message || 'API error');
+      return json.candidates?.[0]?.content?.parts?.[0]?.text || null;
     } catch (error) {
-      console.error(error);
-      showToast(`Error API: ${error.message}`, 'error');
+      showToast(`Error IA: ${error.message}`, 'error');
       return null;
     }
   }
 
-  async function runTransform(label, systemPrompt) {
+  async function runTransform(message, systemPrompt) {
     if (elements.output.value.trim().length < 10) {
-      showToast('Genera un prompt primero.', 'error');
+      showToast('Primero genera un prompt.', 'error');
       return;
     }
-    showToast(label, 'info');
+    showToast(message, 'info');
     const result = await callGemini(elements.output.value, systemPrompt);
-    if (result) {
-      elements.output.value = result;
-      updateTokenCount(result);
-      showToast('Listo.', 'success');
-    }
+    if (!result) return;
+    elements.output.value = result;
+    updateTokenCount(result);
+    pushHistory(result);
+    persistState();
+    showToast('Transformación completada.', 'success');
   }
 
   async function aiRefineInputs() {
-    const raw = `${elements.task.value} ${elements.context.value}`.trim();
-    if (raw.length < 5 && !elements.role.value.trim()) {
-      showToast('Ingresa datos en Objetivo o Contexto para analizar.', 'error');
-      return;
-    }
-
-    const button = el('btnRefine');
-    button.disabled = true;
-    const original = button.textContent;
-    button.textContent = 'Estructurando...';
+    const raw = `${elements.task.value}\n${elements.context.value}`.trim();
+    if (raw.length < 5) return showToast('Escribe objetivo/contexto primero.', 'error');
 
     const response = await callGemini(
-      `Structure this input:\nRole: ${elements.role.value}\nInput: ${raw}`,
-      "You are an Expert Prompt Architect. Return ONLY strict JSON with keys: role, task, context, audience, examples, constraints, format. Keep original language."
+      `Role: ${elements.role.value}\nInput: ${raw}`,
+      'Return strict JSON with keys: role, task, context, audience, examples, constraints, format. Keep original language. No markdown.'
     );
-
-    button.disabled = false;
-    button.textContent = original;
-
     if (!response) return;
+
     try {
       const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
       fields.forEach((f) => {
         if (typeof parsed[f.key] === 'string') elements[f.key].value = parsed[f.key];
       });
       generatePrompt();
-      showToast('Inputs estructurados correctamente.', 'success');
+      persistState();
+      showToast('Inputs estructurados.', 'success');
     } catch {
       showToast('La IA no devolvió JSON válido.', 'error');
     }
   }
 
   async function optimizeAndTranslate() {
-    await runTransform(
-      'Aplicando optimización final...',
-      "1) Translate to professional ENGLISH. 2) Optimize clarity and imperative style. 3) Include instruction about epistemological rigor. 4) Ensure 'OUTPUT MUST BE IN SPANISH' appears at the end. Return ONLY final prompt."
-    );
-  }
-
-  function renderMarkdownSafe(targetId, markdownText) {
-    const raw = marked.parse(markdownText || '');
-    el(targetId).innerHTML = DOMPurify.sanitize(raw);
+    await runTransform('Generando versión final EN...', "Translate to professional English, optimize directives, keep epistemological rigor requirement, and end with 'OUTPUT MUST BE IN SPANISH'. Return only prompt.");
   }
 
   async function evaluatePrompt() {
-    const prompt = elements.output.value.trim();
-    if (!prompt) return showToast('Genera un prompt primero.', 'error');
-    el('loadingEval').classList.remove('hidden');
-    el('loadingEval').classList.add('flex');
-    const res = await callGemini(prompt, 'Act as a Prompt Judge. Score 0-100 for Clarity, Logic, Robustness. Return concise Markdown table + summary.');
-    el('loadingEval').classList.add('hidden');
-    el('loadingEval').classList.remove('flex');
+    if (!elements.output.value.trim()) return showToast('No hay prompt para evaluar.', 'error');
+    toggleLoading('loadingEval', true);
+    const res = await callGemini(elements.output.value, 'Act as Prompt Judge. Score clarity, logic, robustness (0-100). Return markdown table and short recommendation.');
+    toggleLoading('loadingEval', false);
     if (res) renderMarkdownSafe('evalOutput', res);
   }
 
   async function testPrompt() {
-    const prompt = elements.output.value.trim();
-    if (!prompt) return showToast('Genera un prompt primero.', 'error');
-    el('loadingTest').classList.remove('hidden');
-    el('loadingTest').classList.add('flex');
-    const res = await callGemini(prompt, 'You are a helpful AI. Execute this prompt precisely.');
-    el('loadingTest').classList.add('hidden');
-    el('loadingTest').classList.remove('flex');
+    if (!elements.output.value.trim()) return showToast('No hay prompt para probar.', 'error');
+    toggleLoading('loadingTest', true);
+    const res = await callGemini(elements.output.value, 'Execute this prompt precisely and respond in Spanish.');
+    toggleLoading('loadingTest', false);
     if (res) renderMarkdownSafe('testOutput', res);
   }
 
+  function toggleLoading(id, show) {
+    const node = byId(id);
+    node.classList.toggle('hidden', !show);
+    node.classList.toggle('flex', show);
+  }
+
   async function copyToClipboard() {
-    if (!elements.output.value.trim()) return;
+    if (!elements.output.value) return;
     try {
       await navigator.clipboard.writeText(elements.output.value);
-      showToast('Copiado al portapapeles.', 'success');
+      showToast('Prompt copiado.', 'success');
     } catch {
       showToast('No se pudo copiar.', 'error');
     }
   }
 
-  function resetPanels() {
-    renderMarkdownSafe('evalOutput', '**¿Para qué sirve?**\n\nEvalúa claridad, lógica y robustez del prompt.');
-    renderMarkdownSafe('testOutput', '**Resultado esperado:**\n\nEl simulador ejecutará el prompt con salida en español.');
-  }
-
   function clearAll() {
     fields.forEach((f) => { elements[f.key].value = ''; });
     generatePrompt();
-    resetPanels();
-    showToast('Laboratorio reiniciado.', 'info');
+    renderMarkdownSafe('evalOutput', '**¿Para qué sirve?**\n\nEvalúa claridad, lógica y robustez.');
+    renderMarkdownSafe('testOutput', '**Resultado esperado:**\n\nEl simulador ejecuta el prompt y responde en español.');
+    persistState();
+    showToast('Campos limpiados.', 'info');
   }
 
-  bootstrapUI();
+  function pushHistory(value) {
+    const v = value || '';
+    if (historyState.stack[historyState.idx] === v) return;
+    historyState.stack = historyState.stack.slice(0, historyState.idx + 1);
+    historyState.stack.push(v);
+    if (historyState.stack.length > 100) historyState.stack.shift();
+    historyState.idx = historyState.stack.length - 1;
+  }
+
+  function undoOutput() {
+    if (historyState.idx <= 0) return;
+    historyState.idx -= 1;
+    elements.output.value = historyState.stack[historyState.idx];
+    updateTokenCount(elements.output.value);
+  }
+
+  function redoOutput() {
+    if (historyState.idx >= historyState.stack.length - 1) return;
+    historyState.idx += 1;
+    elements.output.value = historyState.stack[historyState.idx];
+    updateTokenCount(elements.output.value);
+  }
+
+  function persistState() {
+    const state = {
+      data: getData(),
+      output: elements.output.value,
+      apiKey: elements.apiKey.value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    byId('saveStatus').textContent = 'Autosave: guardado';
+    setTimeout(() => { byId('saveStatus').textContent = 'Autosave: activo'; }, 900);
+  }
+
+  function hydrateFromStorage() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) { generatePrompt(); return; }
+    try {
+      const state = JSON.parse(raw);
+      if (state.data) {
+        elements.framework.value = state.data.framework || 'robust';
+        fields.forEach((f) => { elements[f.key].value = state.data[f.key] || ''; });
+      }
+      elements.apiKey.value = state.apiKey || '';
+      elements.output.value = state.output || buildPrompt(getData());
+    } catch {
+      generatePrompt();
+    }
+  }
+
+  function getPresets() {
+    try { return JSON.parse(localStorage.getItem(PRESETS_KEY) || '{}'); }
+    catch { return {}; }
+  }
+
+  function setPresets(v) {
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(v));
+  }
+
+  function refreshPresets() {
+    const presets = getPresets();
+    const select = elements.presetSelect;
+    select.innerHTML = '';
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = 'Selecciona preset';
+    select.appendChild(empty);
+    Object.keys(presets).sort().forEach((name) => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+  }
+
+  function savePreset() {
+    const name = elements.presetName.value.trim();
+    if (!name) return showToast('Define un nombre de preset.', 'error');
+    const presets = getPresets();
+    presets[name] = { ...getData(), output: elements.output.value };
+    setPresets(presets);
+    refreshPresets();
+    elements.presetSelect.value = name;
+    showToast('Preset guardado.', 'success');
+  }
+
+  function loadPreset() {
+    const name = elements.presetSelect.value;
+    if (!name) return;
+    const item = getPresets()[name];
+    if (!item) return;
+    elements.framework.value = item.framework || 'robust';
+    fields.forEach((f) => { elements[f.key].value = item[f.key] || ''; });
+    elements.output.value = item.output || buildPrompt(getData());
+    updateFrameworkDescription();
+    updateTokenCount(elements.output.value);
+    pushHistory(elements.output.value);
+    persistState();
+    showToast('Preset cargado.', 'success');
+  }
+
+  function deletePreset() {
+    const name = elements.presetSelect.value;
+    if (!name) return;
+    const presets = getPresets();
+    delete presets[name];
+    setPresets(presets);
+    refreshPresets();
+    showToast('Preset eliminado.', 'info');
+  }
+
+  function exportStateJson() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      state: {
+        data: getData(),
+        output: elements.output.value
+      }
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'prompt-architect-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Exportado a JSON.', 'success');
+  }
+
+  function importStateJson(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || '{}'));
+        const data = parsed.state?.data || parsed.data;
+        if (!data) throw new Error('Formato inválido');
+        elements.framework.value = data.framework || 'robust';
+        fields.forEach((f) => { elements[f.key].value = data[f.key] || ''; });
+        elements.output.value = parsed.state?.output || parsed.output || buildPrompt(getData());
+        updateFrameworkDescription();
+        updateTokenCount(elements.output.value);
+        pushHistory(elements.output.value);
+        persistState();
+        showToast('Importación completada.', 'success');
+      } catch {
+        showToast('Archivo JSON inválido.', 'error');
+      } finally {
+        event.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  init();
+})();
 </script>
 </body>
 </html>
