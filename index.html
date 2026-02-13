@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Prompt Architect Lab v4.2.0</title>
+  <title>Prompt Architect Lab v4.3.0 - ChatGPT</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
@@ -56,8 +56,16 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
           <div>
-            <label class="text-[10px] uppercase text-slate-500 font-bold">API Key Gemini</label>
-            <input id="apiKeyInput" class="input-field text-sm" type="password" placeholder="AIza..." autocomplete="off" />
+            <label class="text-[10px] uppercase text-slate-500 font-bold">API Key OpenAI</label>
+            <input id="apiKeyInput" class="input-field text-sm" type="password" placeholder="sk-..." autocomplete="off" />
+          </div>
+          <div>
+            <label class="text-[10px] uppercase text-slate-500 font-bold">Modelo ChatGPT</label>
+            <select id="modelSelect" class="input-field text-sm">
+              <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+              <option value="gpt-4.1">gpt-4.1</option>
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+            </select>
           </div>
           <div>
             <label class="text-[10px] uppercase text-slate-500 font-bold">Nombre preset</label>
@@ -136,10 +144,9 @@
 (() => {
   'use strict';
 
-  const CURRENT_MODEL = 'gemini-2.5-flash';
-  const API_VERSION = 'v1beta';
-  const STORAGE_KEY = 'prompt-architect-state-v42';
-  const PRESETS_KEY = 'prompt-architect-presets-v42';
+  const DEFAULT_MODEL = 'gpt-4.1-mini';
+  const STORAGE_KEY = 'prompt-architect-state-v43';
+  const PRESETS_KEY = 'prompt-architect-presets-v43';
 
   const frameworkOptions = [
     { value: 'robust', label: 'Estándar Robusto', desc: 'Plantilla general balanceada.' },
@@ -173,7 +180,7 @@
     refreshPresets();
     updateFrameworkDescription();
     updateTokenCount(elements.output.value || '');
-    byId('modelBadge').innerHTML = `<span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span> ${CURRENT_MODEL}`;
+    byId('modelBadge').innerHTML = `<span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span> ${byId('modelSelect').value}`;
     lucide.createIcons();
     pushHistory(elements.output.value || '');
     renderMarkdownSafe('evalOutput', '**¿Para qué sirve?**\n\nEvalúa claridad, lógica y robustez.');
@@ -221,7 +228,8 @@
       desc: byId('frameworkDesc'),
       presetName: byId('presetNameInput'),
       presetSelect: byId('presetSelect'),
-      importFile: byId('importFile')
+      importFile: byId('importFile'),
+      model: byId('modelSelect')
     });
   }
 
@@ -229,6 +237,10 @@
     elements.framework.addEventListener('change', updateFrameworkDescription);
     fields.forEach((f) => elements[f.key].addEventListener('input', onInputsChanged));
     elements.output.addEventListener('input', onOutputEdited);
+    elements.model.addEventListener('change', () => {
+      byId('modelBadge').innerHTML = `<span class=\"inline-block w-1.5 h-1.5 rounded-full bg-cyan-400\"></span> ${elements.model.value}`;
+      persistState();
+    });
 
     byId('btnRefine').addEventListener('click', aiRefineInputs);
     byId('btnOptimize').addEventListener('click', () => runTransform('Mejorando...', 'Improve clarity and precision. Keep same language. Return only prompt.'));
@@ -357,31 +369,42 @@
     byId(targetId).innerHTML = DOMPurify.sanitize(html);
   }
 
-  async function callGemini(userText, systemText) {
+  async function callChatGPT(userText, systemText) {
     const apiKey = elements.apiKey.value.trim();
     if (!apiKey) {
-      showToast('Ingresa API key para funciones IA.', 'error');
+      showToast('Ingresa API key de OpenAI para funciones IA.', 'error');
       return null;
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${CURRENT_MODEL}:generateContent?key=${apiKey}`;
+    const endpoint = 'https://api.openai.com/v1/responses';
     const payload = {
-      contents: [{ parts: [{ text: userText }] }],
-      systemInstruction: { parts: [{ text: systemText }] }
+      model: elements.model.value || DEFAULT_MODEL,
+      temperature: 0.2,
+      input: [
+        { role: 'system', content: systemText },
+        { role: 'user', content: userText }
+      ]
     };
 
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text.slice(0, 180)}`);
+      }
       const json = await response.json();
-      if (json.error) throw new Error(json.error.message || 'API error');
-      return json.candidates?.[0]?.content?.parts?.[0]?.text || null;
+      const out = json.output_text
+        || json.output?.flatMap((o) => o.content || []).map((c) => c.text || '').join('\n').trim();
+      return out || null;
     } catch (error) {
-      showToast(`Error IA: ${error.message}`, 'error');
+      showToast(`Error OpenAI: ${error.message}`, 'error');
       return null;
     }
   }
@@ -392,7 +415,7 @@
       return;
     }
     showToast(message, 'info');
-    const result = await callGemini(elements.output.value, systemPrompt);
+    const result = await callChatGPT(elements.output.value, systemPrompt);
     if (!result) return;
     elements.output.value = result;
     updateTokenCount(result);
@@ -405,7 +428,7 @@
     const raw = `${elements.task.value}\n${elements.context.value}`.trim();
     if (raw.length < 5) return showToast('Escribe objetivo/contexto primero.', 'error');
 
-    const response = await callGemini(
+    const response = await callChatGPT(
       `Role: ${elements.role.value}\nInput: ${raw}`,
       'Return strict JSON with keys: role, task, context, audience, examples, constraints, format. Keep original language. No markdown.'
     );
@@ -431,7 +454,7 @@
   async function evaluatePrompt() {
     if (!elements.output.value.trim()) return showToast('No hay prompt para evaluar.', 'error');
     toggleLoading('loadingEval', true);
-    const res = await callGemini(elements.output.value, 'Act as Prompt Judge. Score clarity, logic, robustness (0-100). Return markdown table and short recommendation.');
+    const res = await callChatGPT(elements.output.value, 'Act as Prompt Judge. Score clarity, logic, robustness (0-100). Return markdown table and short recommendation.');
     toggleLoading('loadingEval', false);
     if (res) renderMarkdownSafe('evalOutput', res);
   }
@@ -439,7 +462,7 @@
   async function testPrompt() {
     if (!elements.output.value.trim()) return showToast('No hay prompt para probar.', 'error');
     toggleLoading('loadingTest', true);
-    const res = await callGemini(elements.output.value, 'Execute this prompt precisely and respond in Spanish.');
+    const res = await callChatGPT(elements.output.value, 'Execute this prompt precisely and respond in Spanish.');
     toggleLoading('loadingTest', false);
     if (res) renderMarkdownSafe('testOutput', res);
   }
@@ -496,7 +519,8 @@
     const state = {
       data: getData(),
       output: elements.output.value,
-      apiKey: elements.apiKey.value
+      apiKey: elements.apiKey.value,
+      selectedModel: byId('modelSelect')?.value || DEFAULT_MODEL
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     byId('saveStatus').textContent = 'Autosave: guardado';
@@ -513,6 +537,7 @@
         fields.forEach((f) => { elements[f.key].value = state.data[f.key] || ''; });
       }
       elements.apiKey.value = state.apiKey || '';
+      if (state.selectedModel && byId('modelSelect')) byId('modelSelect').value = state.selectedModel;
       elements.output.value = state.output || buildPrompt(getData());
     } catch {
       generatePrompt();
